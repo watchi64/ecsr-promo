@@ -75,7 +75,8 @@ test("I2 : le guide dit la même chose que l'écran", () => {
 // ---- I3 : la rédaction des cours suit la case « Cours et QCM » ----
 test("I3 : isRedacteur suit la case Cours et QCM (équipe et siège), l'ancien prédicat sinon", () => {
   const src = sansCommentaires(lire("js/auth-admin.js"));
-  assert.ok(/export function isRedacteur\(\) \{\s*const ancien = peutRedigerContenus\([^;]*;\s*return ecritSelonLaCase\("cours", ancien, \["equipe", "siege"\]\);/.test(src));
+  // Cloisonnement (étape 3) : la case décide toujours, et l'organisme affiché doit de plus rédiger les contenus (ecritLesContenus).
+  assert.ok(/export function isRedacteur\(\) \{\s*const ancien = peutRedigerContenus\([^;]*;\s*return ecritSelonLaCase\("cours", ancien, \["equipe", "siege"\]\) && ecritLesContenus\(\);/.test(src));
   const ecrit = (espace, niveau, titre, ancien) => {
     const cases = casesDeLEspace({ espace, titres: [titre], promoId: 1 });
     return selonLaCase({ cases, droit: caseDe(cases, "cours", niveau) === 2, ancien });

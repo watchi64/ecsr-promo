@@ -4,34 +4,35 @@ import {
   saveQcmQuestion, deleteQcmQuestion, reorderQcmQuestions, uploadQcmImage, listQcmSignalements,
   setQcmSignalementStatut, countQcmSignalementsOuverts, getCours, proposerQuestionsIa, listBrouillonsIa,
   accepterBrouillonIa, rejeterBrouillonIa, listStagiaires, listerMesLectures, lecturesDeLaPromo,
-} from "../db.js?v=20261128a";
-import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261128a";
-import { confirmer } from "../confirmer.js?v=20261128a";
-import { icon, deco } from "../icons.js?v=20261128a";
-import { dixieme } from "../nombres.js?v=20261128a";
+} from "../db.js?v=20261128c";
+import { el, clear, isoDate, formatDate, toast, debounce, displayStagiaire } from "../utils.js?v=20261128c";
+import { confirmer } from "../confirmer.js?v=20261128c";
+import { icon, deco } from "../icons.js?v=20261128c";
+import { dixieme } from "../nombres.js?v=20261128c";
 import {
   examenDemarrable, tempsRestantMs, formatTempsRestant, echeanceDepuisChoix, DUREES_OUVERTURE, libelleOuverture,
   resumeExamen, examenCoteStagiaire, etatExamenFormateur,
-} from "../qcm-exam-rules.js?v=20261128a";
-import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic, ecritSelonLaCase } from "../auth-admin.js?v=20261128a";
-import { recordUndo } from "../undo.js?v=20261128a";
-import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261128a";
-import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261128a";
-import { renderSubTabs } from "../subtabs.js?v=20261128a";
-import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert, coursDuTheme } from "./cours-reader.js?v=20261128a";
-import { autonomieActive, peutTracer } from "../autonomie-etat.js?v=20261128a";
-import { coursLus, phraseLecteurs } from "../autonomie-rules.js?v=20261128a";
-import { cleCours } from "../cours-rules.js?v=20261128a";
-import { sousOngletsCours, phraseDeRefus, litToutesLesNotes } from "../espaces-rules.js?v=20261128a";
-import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261128a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261128a";
-import { renderRessources } from "./ressources.js?v=20261128a";
-import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261128a";
-import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261128a";
-import { renderPropositionsIa } from "./propositions-ia.js?v=20261128a";
-import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261128a";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261128a";
-import { ETATS_PROGRESSION, dateExamen, etatProgression, bilanProgression, phraseBilan } from "../progression-rules.js?v=20261128a";
+} from "../qcm-exam-rules.js?v=20261128c";
+import { isAdmin, isRedacteur, getEspace, getAdminEmail, isStagiaire, monStagiaireId, selonPublic, ecritSelonLaCase, ecritLesContenus } from "../auth-admin.js?v=20261128c";
+import { recordUndo } from "../undo.js?v=20261128c";
+import { openQcmEntrainement, openQcmExamen } from "./qcm.js?v=20261128c";
+import { carteSignalement, renderConsoleSignalements, chargerAuteurs, nomStagiaire } from "./signalements.js?v=20261128c";
+import { renderSubTabs } from "../subtabs.js?v=20261128c";
+import { hasCours, openCoursSheet, chargerCoursIndex, coursDejaOuvert, coursDuTheme } from "./cours-reader.js?v=20261128c";
+import { autonomieActive, peutTracer } from "../autonomie-etat.js?v=20261128c";
+import { coursLus, phraseLecteurs } from "../autonomie-rules.js?v=20261128c";
+import { cleCours } from "../cours-rules.js?v=20261128c";
+import { sousOngletsCours, phraseDeRefus, litToutesLesNotes } from "../espaces-rules.js?v=20261128c";
+import { moduleVisible, moduleMasque, repereMasque, formateurConnecte } from "../modules-etat.js?v=20261128c";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261128c";
+import { renderRessources } from "./ressources.js?v=20261128c";
+import { renderQcmStagiaire } from "./qcm-stagiaire.js?v=20261128c";
+import { messageLectureEnEchec, lireToutes } from "../qcm-rules.js?v=20261128c";
+import { renderPropositionsIa } from "./propositions-ia.js?v=20261128c";
+import { gestesDeLaBanqueQcm } from "../organisme-rules.js?v=20261128c";
+import { articlesCites, articlesHorsCours, titresDuCours, libelleTraceIa, brouillonVersQuestion, resumeProposition } from "../qcm-ia-rules.js?v=20261128c";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261128c";
+import { ETATS_PROGRESSION, dateExamen, etatProgression, bilanProgression, phraseBilan } from "../progression-rules.js?v=20261128c";
 
 let themes = [];
 let qcmByTheme = new Map();  // theme_id -> { id, nb_questions, published, ... }
@@ -334,6 +335,9 @@ function sampleN(arr, n) {
 // Gérer l'examen, éditer la banque, lire les signalements : le formateur de la promo (la direction ne le fait pas : la base
 // refuserait).
 function canManageExam() { return ecritSelonLaCase("cours"); }
+// Cloisonnement (correctif 2) : les chemins vers l'éditeur de QCM que tient la gestion des examens exigent en plus d'écrire les
+// contenus communs (js/organisme-rules.js, gestesDeLaBanqueQcm) ; examens et contestations restent à canManageExam.
+function gestesBanque() { return gestesDeLaBanqueQcm({ gererExamen: canManageExam(), ecritContenus: ecritLesContenus() }); }
 
 // Le siège rédige les contenus communs sans promo (lot 5, D13) : ni progression, ni statut, ni examen, ni promo nommée.
 function sansPromo() { return getEspace() === "siege"; }
@@ -400,7 +404,11 @@ function openQcmSheet(theme, qcm) {
     // Sans ça il fallait passer par « Modifier » puis « Éditer les questions » pour les
     // découvrir, donc savoir à l'avance qu'il y en avait.
     const nbSignal = signalByQcm[qcm.id] || 0;
-    if (canManageExam() && nbSignal) {
+    if (canManageExam() && nbSignal && !gestesBanque().editeurDepuisContestation) {
+      // Organisme qui ne rédige pas les contenus : pas d'éditeur, les contestations se traitent dans leur sous-onglet.
+      body.appendChild(el("p", { class: "muted", style: "font-size:0.85rem;text-align:center;margin:0.9rem 0 0" },
+        `${nbSignal} question${nbSignal > 1 ? "s" : ""} contestée${nbSignal > 1 ? "s" : ""} à traiter dans « Questions contestées ».`));
+    } else if (canManageExam() && nbSignal) {
       const voir = el("button", { class: "btn full", type: "button", style: "margin-top:0.9rem" },
         deco(icon.drapeau()), `${nbSignal} question${nbSignal > 1 ? "s" : ""} contestée${nbSignal > 1 ? "s" : ""} à traiter`);
       voir.addEventListener("click", () => { modale.fermer({ focus: false }); openQcmEditor(theme, qcm.id); });
@@ -615,10 +623,10 @@ function themeExamPanel(theme, qcm, onPublishChange) {
     const modal = el("div", { class: "modal" },
       el("h3", {}, "Modifier l'examen"),
       summary,
-      el("div", { class: "config-section" },
+      gestesBanque().editerQuestions ? el("div", { class: "config-section" },
         el("p", { class: "config-label" }, "Banque de questions"),
         el("button", { class: "btn ghost full", type: "button", onClick: editQuestions }, icon.quiz(), "Éditer les questions"),
-      ),
+      ) : null,
       el("div", { class: "config-section" },
         el("p", { class: "config-label" }, "Questions de l'examen"),
         el("div", { class: "theme-exam-draw-line" }, el("span", {}, "Tirer"), nbInput, el("span", {}, `au hasard (sur ${qcm.nb_questions})`)),
@@ -715,7 +723,8 @@ async function openQcmEditor(theme, qcmId, questionIdCible = null, onFerme = nul
   // Questions proposées par l'IA : seulement pour un thème qui a un cours vérifié (la
   // seule source de l'IA). Les brouillons à relire sont rechargés avec l'éditeur ; les
   // brouillons écartés par le contrôle ne sont montrés qu'après la demande qui les a produits.
-  const iaPossible = ecritSelonLaCase("cours") && !!theme.numero && hasCours(theme);
+  // « Proposer avec l'IA » : un organisme qui rédige les contenus communs (ecritLesContenus), comme le droit de qcm-ia en base.
+  const iaPossible = ecritSelonLaCase("cours") && ecritLesContenus() && !!theme.numero && hasCours(theme);
   let brouillons = [];
   let ecartesRecents = [];
   let coursIaMd = null;
@@ -1566,7 +1575,7 @@ function renderThemeRow(theme, container, coursOn = false) {
         class: "theme-qcm-hint", type: "button", title: "Voir le QCM",
         onClick: (ev) => { ev.preventDefault(); ev.stopPropagation(); openQcmSheet(theme, qcm); },
       }, icon.quiz(), "QCM")
-      : (canManageExam() ? boutonCreerQcm(theme) : null);
+      : (gestesBanque().creerQcm ? boutonCreerQcm(theme) : null);
 
   const etiquette = theme.numero != null || theme.code ? `thème ${num}`
     : `${theme.type === "notion" ? "la notion" : "thème"} « ${theme.titre} »`;
@@ -2049,12 +2058,15 @@ export async function renderThemes(container) {
   }
   if (canManageExam()) {
     onglets.push({ key: "signalements", label: "Questions contestées",
-      render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: ouvrirDepuisConsole, isActive: ctx?.isActive }); } });
+      // « Ouvrir dans l'éditeur » : seulement là où l'éditeur peut enregistrer (gestesBanque) ; « Question corrigée » et « Pas
+      // d'erreur » restent.
+      render: (p, ctx) => { renderConsoleSignalements(p, { themes, onOuvrirEditeur: gestesBanque().editeurDepuisContestation ? ouvrirDepuisConsole : null, isActive: ctx?.isActive }); } });
   }
   // Formateurs de la promo (isAdmin, formateur_courant en base) : les questions que l'IA a proposées
   // et que personne n'a relues. La table des brouillons n'est lisible que par eux (RLS) : la direction et le siège n'ont
   // pas ce sous-onglet, et la pastille « à traiter » ne les compte pas pour eux (elle lit la même table).
-  if (ecritSelonLaCase("cours")) {
+  // Cloisonnement : réservé à un organisme qui rédige les contenus communs (ecritLesContenus) ; la base ne montre les brouillons qu'à lui.
+  if (ecritSelonLaCase("cours") && ecritLesContenus()) {
     onglets.push({ key: "ia", label: "Propositions IA",
       render: (p, ctx) => { renderPropositionsIa(p, { themes, onOuvrirEditeur: ouvrirDepuisIa, isActive: ctx?.isActive }); } });
   }

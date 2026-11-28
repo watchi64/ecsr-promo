@@ -2,7 +2,7 @@
 # Rejoue, sur la base locale reconstruite (reconstruire.sh), les migrations du dépôt postérieures au lot 4, dans l'ordre
 # où la production les a reçues, pour que les preuves SQL se jouent sur un état identique à la production.
 #
-# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,...]] [--autonomie 1|1,2] [--production]
+# Usage : outils/base_locale/rejouer_suite.sh [--port 55435] [--avec-titres] [--titres 1,2,3[,...]] [--autonomie 1|1,2] [--production] [--production-2711]
 #   --port         port de la base locale (défaut 55435)
 #   --avec-titres  ajoute ensuite les migrations 20261112_titres_1 à _4 (chantier titres et droits à la carte) ; vaut --titres 1,2,3,4
 #   --titres       ajoute ensuite les migrations 2026111?_titres_<n>_* (n de 1 à 9, date quelconque du 10 au 19/11) dans l'ordre de
@@ -17,6 +17,13 @@
 #                  20261115_titres_9_catalogue (appliquée le 16/11) (sortie : 30 migrations) ;
 #                  ne se combine ni avec
 #                  --titres ni avec --avec-titres
+#   --production-2711  l'état de la production au 27/11 : --production puis, dans cet ordre (fusion eaffaf61 du 21/11 pour les
+#                  contacts, le journal des titres et les conditions ; 4a661c28 du 23/11 et b5535cd5 du 24/11 pour les EPCF du CCP2) :
+#                  20261115_contact_1_annuaire, _1b_fermeture, _2_demandes, _3_absences, 20261115_contact_demo,
+#                  20261116_contact_4_correctifs, 20261118_contact_5_donnees_sensibles, 20261112_titres_4_journal (journal des droits,
+#                  appliqué le 21/11 après la 9), 20261121_conditions_version (aucune variable psql : la garde exige la version
+#                  publiée 2026-11-14 et la remplace par 2026-11-21 ; autonomie_2 reste à 2026-11-14), 20261123_epcf_ccp2 et
+#                  20261124_epcf_ccp2_reseau (sortie : 41 migrations) ; ne se combine ni avec --titres ni avec --avec-titres
 # Sans --titres, --autonomie ni --production : la suite d'avant (14 migrations, plus les deux des contacts : 16).
 # Code de sortie : 0 si tout passe ; sinon 3 (le nom du fichier en échec est écrit sur la sortie d'erreur).
 # Note : 20261028_signalements_app n'est pas dans la liste : ses tables sont dans clone_3_tables.sql ; seules ses fonctions sont jouées.
@@ -27,6 +34,7 @@ TITRES=0
 LISTE_TITRES=""
 AUTONOMIE=""
 PRODUCTION=0
+P2711=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --port) PORT="$2"; shift 2 ;;
@@ -45,6 +53,7 @@ while [ $# -gt 0 ]; do
       esac
       shift 2 ;;
     --production) PRODUCTION=1; AUTONOMIE="1,2"; shift ;;
+    --production-2711) PRODUCTION=1; P2711=1; AUTONOMIE="1,2"; shift ;;
     *) echo "argument inconnu : $1" >&2; exit 2 ;;
   esac
 done
@@ -133,6 +142,14 @@ fi
 if [ "$PRODUCTION" = 1 ]; then
   $P -1 -f "$MIGRATIONS/20261115_titres_9_catalogue.sql" >/dev/null || { echo "échec : 20261115_titres_9_catalogue" >&2; exit 3; }
   N=$((N + 1))
+fi
+# Production du 27/11 seulement, après la 9 des titres : les contacts (21/11), le journal des droits, les conditions 2026-11-21, les
+# EPCF du CCP2 (23 et 24/11). Avant les droits ci-dessous, pour qu'ils portent sur l'état final des fonctions.
+if [ "$P2711" = 1 ]; then
+  for f in 20261115_contact_1_annuaire 20261115_contact_1b_fermeture 20261115_contact_2_demandes 20261115_contact_3_absences            20261115_contact_demo 20261116_contact_4_correctifs 20261118_contact_5_donnees_sensibles 20261112_titres_4_journal            20261121_conditions_version 20261123_epcf_ccp2 20261124_epcf_ccp2_reseau; do
+    $P -1 -f "$MIGRATIONS/$f.sql" >/dev/null || { echo "échec : $f" >&2; exit 3; }
+    N=$((N + 1))
+  done
 fi
 # Droits propres à la production, que les clones ne portent pas (écarts de la base locale constatés le 10/11 et le 11/11) :
 # 1. registre_qualite : en production, service_role y écrit (la preuve du registre le contrôle) ; ici la table naît de la

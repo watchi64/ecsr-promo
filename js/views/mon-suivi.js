@@ -2,36 +2,36 @@ import { listStagiaires, listEvaluations, getPlanning, getHalfMetaForWeek, getJo
          listProfs, listEpcf, getEpcfMoyennes, listThemes,
          getStagiaire, setDateNaissance, listPassages,
          listLivretsIndex, listDossiersIndex, getDpDossier, getPromoCourante, getNotesStatsGroupe,
-         listCoursIndex, listerAutonomie, listerEntrainementsQcm } from "../db.js?v=20261128a";
-import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261128a";
-import { dixieme, fr1, pluriel } from "../nombres.js?v=20261128a";
-import { HALF_DAYS, RESULTATS } from "../config.js?v=20261128a";
-import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261128a";
-import { isAdmin, isProf, monStagiaireId, selonPublic, getEspace } from "../auth-admin.js?v=20261128a";
-import { autonomieActive, peutTracer } from "../autonomie-etat.js?v=20261128a";
-import { ficheAutonomie, autonomieVisible } from "../autonomie-rules.js?v=20261128a";
-import { litToutesLesNotes } from "../espaces-rules.js?v=20261128a";
-import { jourParis } from "../dates.js?v=20261128a";
-import { renderEpcfPersonne } from "./epcf.js?v=20261128a";
-import { renderSubTabs } from "../subtabs.js?v=20261128a";
-import { renderDp } from "./dp.js?v=20261128a";
-import { renderEpcfLivret } from "./epcf-livret.js?v=20261128a";
-import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261128a";
-import { lundiEnCours } from "../journee-rules.js?v=20261128a";
-import { bandeauAvis } from "../avis.js?v=20261128a";
-import { statsPassages } from "../passages-stats.js?v=20261128a";
-import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261128a";
-import { icon } from "../icons.js?v=20261128a";
-import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261128a";
-import { EPCF_TRAME_KEYS } from "../epcf-trames.js?v=20261128a";
-import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261128a";
-import { exemplesRemplis } from "../dp-rules.js?v=20261128a";
-import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261128a";
-import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261128a";
-import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261128a";
-import { renderNotes } from "./notes.js?v=20261128a";
-import { blocCoordonnees } from "./fiche-coordonnees.js?v=20261128a";
-import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261128a";
+         listCoursIndex, listerAutonomie, listerEntrainementsQcm } from "../db.js?v=20261128c";
+import { el, clear, isoDate, addDays, formatDate, displayStagiaire, toast, largeurDeGraphe } from "../utils.js?v=20261128c";
+import { dixieme, fr1, pluriel } from "../nombres.js?v=20261128c";
+import { HALF_DAYS, RESULTATS } from "../config.js?v=20261128c";
+import { libelleCreneau, jourFerie } from "../emargement-rules.js?v=20261128c";
+import { isAdmin, isProf, monStagiaireId, selonPublic, getEspace } from "../auth-admin.js?v=20261128c";
+import { autonomieActive, peutTracer } from "../autonomie-etat.js?v=20261128c";
+import { ficheAutonomie, autonomieVisible } from "../autonomie-rules.js?v=20261128c";
+import { litToutesLesNotes } from "../espaces-rules.js?v=20261128c";
+import { jourParis } from "../dates.js?v=20261128c";
+import { renderEpcfPersonne } from "./epcf.js?v=20261128c";
+import { renderSubTabs } from "../subtabs.js?v=20261128c";
+import { renderDp } from "./dp.js?v=20261128c";
+import { renderEpcfLivret } from "./epcf-livret.js?v=20261128c";
+import { rolesPourEntry, ROLE_ORDER } from "../creneaux-rules.js?v=20261128c";
+import { lundiEnCours } from "../journee-rules.js?v=20261128c";
+import { bandeauAvis } from "../avis.js?v=20261128c";
+import { statsPassages } from "../passages-stats.js?v=20261128c";
+import { moduleVisible, moduleMasque, repereMasque } from "../modules-etat.js?v=20261128c";
+import { icon } from "../icons.js?v=20261128c";
+import { lireAdresse, adresseFiche, partiesDeLaFiche, ouvertureDeMonSuivi, vueAAfficher, CLE_VUE_RESULTATS } from "../route-rules.js?v=20261128c";
+import { EPCF_TRAME_KEYS } from "../epcf-trames.js?v=20261128c";
+import { etatsSommaire, etatsClairs, passagesAVenir, noterDocument, EVT_DOCUMENT } from "../fiche-rules.js?v=20261128c";
+import { exemplesRemplis } from "../dp-rules.js?v=20261128c";
+import { libellesDeMois, rayonDeCible, largeurDuDessin, LARGEUR_MAX_DU_GRAPHE } from "../evolution-rules.js?v=20261128c";
+import { surChangementAdresse, remplacerAdresse, peutQuitter } from "../navigation.js?v=20261128c";
+import { CLES_SOUS_ONGLETS } from "../nav-rules.js?v=20261128c";
+import { renderNotes } from "./notes.js?v=20261128c";
+import { blocCoordonnees } from "./fiche-coordonnees.js?v=20261128c";
+import { notesSur20, moyenne, tendance, forcesEtFaiblesses, moyenneDuGroupe, formatNote } from "../resultats-rules.js?v=20261128c";
 
 const HALF_ORDER = { matin: 0, aprem: 1 };
 

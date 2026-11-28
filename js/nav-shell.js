@@ -36,29 +36,35 @@
 // la pastille de « Signaler un problème », que le tiroir contient, est affichée), et en phrase en tête du tiroir. La barre
 // ne les attend jamais : ils sont lus après le montage, relus à chaque page affichée (au plus toutes les 30 secondes),
 // et un compte illisible ne montre ni pastille ni erreur.
+// Accès support du fondateur (cloisonnement, spec 2026-11-27 § 5.4) : tant qu'il est ouvert, un bandeau permanent en haut de la
+// page (#support-bandeau, avant le contenu) dit « Accès support : <organisme>, jusqu'à HH h MM » avec « Fermer » ; reposé à chaque
+// montage de la coquille (aperçu compris : l'accès reste ouvert sous un aperçu). À l'échéance, l'app restée ouverte le dit et
+// propose « Recharger » : la base ne donne déjà plus l'organisme du support.
 
-import { el } from "./utils.js?v=20261128a";
-import { icon, deco } from "./icons.js?v=20261128a";
-import { getProfile, fondateurHorsApercu, getCentre } from "./auth-admin.js?v=20261128a";
-import { getPromoCourante, getLieuxLus, listeDemandes } from "./db.js?v=20261128a";
-import { compterNonLues } from "./contact-rules.js?v=20261128a";
-import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261128a";
-import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261128a";
-import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261128a";
-import { libellePastille } from "./nouveautes.js?v=20261128a";
+import { el } from "./utils.js?v=20261128c";
+import { icon, deco } from "./icons.js?v=20261128c";
+import { getProfile, fondateurHorsApercu, getCentre, isFounder } from "./auth-admin.js?v=20261128c";
+import { getPromoCourante, getLieuxLus, listeDemandes, lireMonOrganisme, rechargerApresEnregistrements, invalidateCache } from "./db.js?v=20261128c";
+import { etatBandeauSupport, organismeAChange } from "./organisme-rules.js?v=20261128c";
+import { fermerAccesSupportPuisRecharger, texteSupportEnGras } from "./views/acces-support.js?v=20261128c";
+import { compterNonLues } from "./contact-rules.js?v=20261128c";
+import { construirePastille, construirePastilleCentre } from "./promo-pastille.js?v=20261128c";
+import { barreLaterale as aLaBarreLaterale } from "./espaces-rules.js?v=20261128c";
+import { routeMasquee, repereMasque, moduleVisible, moduleMasque } from "./modules-etat.js?v=20261128c";
+import { libellePastille } from "./nouveautes.js?v=20261128c";
 import {
   barreTelephone, entreeActive, entreeMasquee, initialesDe, prenomDe, libelleRole, nomDuBoutonCompte,
-} from "./nav-rules.js?v=20261128a";
-import { chargerATraiter } from "./a-traiter.js?v=20261128a";
+} from "./nav-rules.js?v=20261128c";
+import { chargerATraiter } from "./a-traiter.js?v=20261128c";
 import {
   ENTREE_A_TRAITER, resumeATraiter, nomAvecATraiter, phraseATraiter, pointSurPlus, nomDePlus,
-} from "./a-traiter-rules.js?v=20261128a";
-import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261128a";
-import { ouvrirMenuCompte } from "./menu-compte.js?v=20261128a";
-import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261128a";
-import { ouvrirSignalement } from "./signalement.js?v=20261128a";
-import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261128a";
-import { pastilleSignalement } from "./signalement-rules.js?v=20261128a";
+} from "./a-traiter-rules.js?v=20261128c";
+import { ouvrirFenetre, fermerFenetre, fenetreOuverte, rendreFocus } from "./nav-fenetre.js?v=20261128c";
+import { ouvrirMenuCompte } from "./menu-compte.js?v=20261128c";
+import { basculerAssistant, assistantOuvert, onAssistantChange } from "./chatbot.js?v=20261128c";
+import { ouvrirSignalement } from "./signalement.js?v=20261128c";
+import { etatSignalements, onSignalementsChange } from "./signalement-etat.js?v=20261128c";
+import { pastilleSignalement } from "./signalement-rules.js?v=20261128c";
 
 // Barre latérale repliée en colonne d'icônes : choix mémorisé sur l'appareil.
 const CLE_REPLIEE = "ecsr_nav_repliee";
@@ -642,6 +648,80 @@ export function monterCoquille({ espace, entrees, nom, initiales, actualiser }) 
   else if (focus) document.querySelector(focus)?.focus();
   relireATraiter({ force: true });
   relireMessages({ force: true });
+  poserBandeauSupport();
+}
+
+// --- Bandeau de l'accès support (fondateur) ---
+
+let minuteurSupport = null;
+let lectureSupport = 0;   // une lecture partie avant un remontage plus récent ne dessine rien
+let organismeVu = null;   // le dernier organisme lu pour le bandeau : comparé au retour sur l'app
+let ecouteRetour = false;
+let relectureAuRetour = false;
+
+// Lit l'organisme affiché (lireMonOrganisme ne lève jamais) et pose ou retire le bandeau. Rien pour qui n'est pas le fondateur.
+async function poserBandeauSupport() {
+  const mienne = ++lectureSupport;
+  if (!ecouteRetour) {
+    ecouteRetour = true;
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) relireOrganismeAuRetour(); });
+  }
+  if (!isFounder()) { organismeVu = null; dessinerBandeauSupport(null); return; }
+  const organisme = await lireMonOrganisme();
+  if (mienne !== lectureSupport) return;
+  organismeVu = organisme;
+  dessinerBandeauSupport(organisme);
+}
+
+// Retour sur l'app (onglet de nouveau visible), fondateur hors aperçu seulement : l'organisme mémorisé (10 minutes) peut être
+// périmé (accès support ouvert ou fermé depuis un autre onglet ou appareil, échéance passée pendant que l'app était cachée). On le
+// relit ; s'il a changé (organismeAChange), le contexte de promo se recharge comme après l'ouverture ou la fermeture du support.
+// Les autres comptes ne relisent rien.
+async function relireOrganismeAuRetour() {
+  if (relectureAuRetour || !fondateurHorsApercu()) return;
+  relectureAuRetour = true;
+  try {
+    const avant = organismeVu;
+    invalidateCache("mon_organisme");
+    const apres = await lireMonOrganisme();
+    if (organismeAChange(avant, apres)) {
+      await rechargerApresEnregistrements();
+      return;
+    }
+    organismeVu = apres;
+    lectureSupport++;
+    dessinerBandeauSupport(apres);
+  } finally {
+    relectureAuRetour = false;
+  }
+}
+
+function dessinerBandeauSupport(organisme) {
+  clearTimeout(minuteurSupport);
+  minuteurSupport = null;
+  const etat = etatBandeauSupport(organisme, Date.now());
+  let bandeau = document.getElementById("support-bandeau");
+  if (!etat.visible) { if (bandeau) bandeau.remove(); return; }
+  const vue = document.getElementById("view");
+  if (!vue) return;
+  if (!bandeau) {
+    bandeau = el("div", { id: "support-bandeau", class: "em-bandeau support-bandeau", role: "status" });
+    // En tête du contenu, avant le bandeau d'émargement s'il est là.
+    const ancre = document.getElementById("emargement-bandeau") || vue;
+    ancre.parentNode.insertBefore(bandeau, ancre);
+  }
+  const bouton = el("button", { class: "btn small", type: "button" }, etat.echu ? "Recharger" : "Fermer");
+  bouton.addEventListener("click", () => {
+    if (etat.echu) { bouton.disabled = true; rechargerApresEnregistrements(); return; }
+    fermerAccesSupportPuisRecharger(bouton);
+  });
+  bandeau.replaceChildren(el("p", {}, texteSupportEnGras(etat.texte)), bouton);
+  bandeau.classList.toggle("support-bandeau-echu", etat.echu);
+  if (!etat.echu) {
+    // Redessiné à l'échéance (une demi-seconde après), pour passer à « terminé ». Au plus 2 heures : sous la borne de setTimeout.
+    const reste = organisme.supportJusqua.getTime() - Date.now() + 500;
+    minuteurSupport = setTimeout(() => dessinerBandeauSupport(organisme), Math.min(Math.max(500, reste), 2147483647));
+  }
 }
 
 // Allume l'entrée de la page affichée (entreeActive : alias compris), et « Plus » quand le

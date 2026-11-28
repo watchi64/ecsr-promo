@@ -5,12 +5,12 @@
 
 import {
   apercuEnvoi, ecrireAuCentre, ecrireA, ecrireAuStagiaire, lireAnnuaire, listStagiaires,
-} from "../db.js?v=20261128a";
-import { el, clear, displayStagiaire } from "../utils.js?v=20261128a";
-import { icon } from "../icons.js?v=20261128a";
-import { vueStagiaire, selonPublic } from "../auth-admin.js?v=20261128a";
-import { ouvrirModale } from "../nav-fenetre.js?v=20261128a";
-import { lignesEncadre, libelleDestinataire, phraseContact, basculerCoche } from "../contact-rules.js?v=20261128a";
+} from "../db.js?v=20261128c";
+import { el, clear, displayStagiaire } from "../utils.js?v=20261128c";
+import { icon } from "../icons.js?v=20261128c";
+import { vueStagiaire, selonPublic } from "../auth-admin.js?v=20261128c";
+import { ouvrirModale } from "../nav-fenetre.js?v=20261128c";
+import { lignesEncadre, libelleDestinataire, phraseContact, basculerCoche } from "../contact-rules.js?v=20261128c";
 
 // Les types qu'un stagiaire peut écrire (l'absence a son propre geste).
 export const TYPES_ECRITS = [

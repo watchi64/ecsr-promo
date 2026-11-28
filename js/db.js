@@ -1,22 +1,23 @@
-import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261128a";
-import { adresseApp } from "./adresse.js?v=20261128a";
-import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261128a";
-import { compteDansEquite } from "./passage-rules.js?v=20261128a";
-import { messageErreurEnvoi } from "./signalement-rules.js?v=20261128a";
-import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261128a";
-import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261128a";
-import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261128a";
-import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261128a";
+import { createClient } from "../vendor/supabase-js-2.117.2.js?v=20261128c";
+import { adresseApp } from "./adresse.js?v=20261128c";
+import { SUPABASE_URL, SUPABASE_KEY } from "./config.js?v=20261128c";
+import { compteDansEquite } from "./passage-rules.js?v=20261128c";
+import { messageErreurEnvoi } from "./signalement-rules.js?v=20261128c";
+import { fonctionAbsente, messageErreurQuestionnaire } from "./questionnaires-erreurs.js?v=20261128c";
+import { messageErreurConservation, conservationAbsente } from "./conservation-erreurs.js?v=20261128c";
+import { messageErreurRegistre, tableAbsente as registreAbsent } from "./registre-erreurs.js?v=20261128c";
+import { fichesDeLaFonction, fichesDesProfils } from "./notes-masquees.js?v=20261128c";
 import {
   ENTETE_PROMO, ENTETE_LECTURE_PROMO, promoDeLaRequete, doitPorterEntetePromo, choisirPromoInitiale, profilEffectif,
   separerChamps, CHAMPS_PROGRESSION, CHAMPS_EXAMEN, fusionnerProgression, fusionnerExamen,
-} from "./promo-rules.js?v=20261128a";
-import { ENTETE_APERCU, ENTETE_APERCU_TITRE, titreSimule, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261128a";
-import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261128a";
-import { effectifDesFiches } from "./centre-stats.js?v=20261128a";
-import { exigerLignes, phraseDelegue } from "./contact-annuaire-rules.js?v=20261128a";
-import { demiJourneesDe } from "./contact-absences-rules.js?v=20261128a";
-import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261128a";
+} from "./promo-rules.js?v=20261128c";
+import { ENTETE_APERCU, ENTETE_APERCU_TITRE, titreSimule, normaliserApercu, messageInvitation } from "./roles-rules.js?v=20261128c";
+import { stagiaireVitrine, requeteDeDonnees, ficheEmpruntee, MESSAGE_VITRINE } from "./vitrine-rules.js?v=20261128c";
+import { effectifDesFiches } from "./centre-stats.js?v=20261128c";
+import { exigerLignes, phraseDelegue } from "./contact-annuaire-rules.js?v=20261128c";
+import { demiJourneesDe } from "./contact-absences-rules.js?v=20261128c";
+import { normaliserAffectations, adresseApresBascule, promosVisiblesEnApercu } from "./espaces-rules.js?v=20261128c";
+import { normaliserMonOrganisme, organismeParDefaut } from "./organisme-rules.js?v=20261128c";
 
 // Contexte de promo (spec multi-promo, C.1). La promo courante voyage dans l'en-tête
 // x-promo-id de chaque requête de données ; la base vérifie le droit et filtre.
@@ -627,6 +628,60 @@ export async function reglerHabillageReseau(habillage) {
   if (error) throw erreurDeBase(error);
   if (!data || typeof data !== "object") throw new Error("habillage: La base n'a rien répondu.");
   return data;
+}
+
+// === Organisme (cloisonnement, spec 2026-11-27 § 5.4) ===
+
+// L'organisme de la personne connectée, pour la promo affichée (mon_organisme() : organisme_courant() ; pour le fondateur,
+// l'organisme de son accès support quand il en a un d'ouvert) : { id, nom, redacteur, habillage, supportJusqua: Date|null }
+// (js/organisme-rules.js, normaliserMonOrganisme). Gardé en mémoire comme les données de référence (cachedQuery : oublié à tout
+// changement de compte, de promo ou d'aperçu, et au plus tard après 10 minutes). Ne lève jamais : fonction absente (base d'avant
+// le cloisonnement), réseau ou refus rendent un nom vide, sans rien garder en mémoire (la lecture suivante réessaie) ; jamais un
+// nom deviné, qui s'imprimerait sur les documents d'un autre organisme.
+export async function lireMonOrganisme() {
+  try {
+    return await cachedQuery("mon_organisme", async () => {
+      const { data, error } = await supabase.rpc("mon_organisme");
+      if (error) throw error;
+      return normaliserMonOrganisme(data);
+    });
+  } catch (e) {
+    if (!fonctionAbsente(e)) console.warn("mon_organisme indisponible", e?.message || e);
+    return normaliserMonOrganisme(null);
+  }
+}
+
+// Les organismes de la plateforme, pour l'écran « Accès support » du fondateur : [{ id, nom }]. Réservé au fondateur (la base
+// refuse les autres, 42501) ; les refus partent tels quels (préfixe « support: »), que l'appelant dit par phraseDeRefus.
+export async function lireOrganismesSupport() {
+  const { data, error } = await supabase.rpc("organismes_pour_support");
+  if (error) throw erreurDeBase(error);
+  return Array.isArray(data) ? data : [];
+}
+
+// Ouvre un accès support de 2 heures (la durée par défaut de la base, son maximum) sur l'organisme `id`, avec son motif (10
+// caractères au moins après retrait des blancs). Les refus partent tels quels. L'appelant recharge l'app ensuite : toutes les
+// données en mémoire sont celles de l'organisme quitté.
+export async function ouvrirAccesSupport(id, motif) {
+  const { data, error } = await supabase.rpc("ouvrir_acces_support", { p_organisme: id, p_motif: motif });
+  if (error) throw erreurDeBase(error);
+  invalidateCache();
+  return data;
+}
+
+// Le nombre de promos que la base ouvre maintenant au compte (mes_promos(), sans rien changer au contexte en mémoire) : après
+// l'ouverture d'un accès support, zéro veut dire que l'app refuserait la session au rechargement. Lève sur une erreur.
+export async function compterMesPromos() {
+  const { data, error } = await supabase.rpc("mes_promos");
+  if (error) throw error;
+  return Array.isArray(data) ? data.length : 0;
+}
+
+// Ferme l'accès support en cours (sans effet s'il n'y en a pas) ; l'appelant recharge l'app.
+export async function fermerAccesSupport() {
+  const { error } = await supabase.rpc("fermer_acces_support");
+  if (error) throw erreurDeBase(error);
+  invalidateCache();
 }
 
 // === Stagiaires & Profs ===
@@ -2201,7 +2256,7 @@ export async function lireDonneesQualiopi(promoId) {
     const { data, error } = await supabase.from("settings").select("value").eq("key", "emargement_entete")
       .setHeader(ENTETE_LECTURE_PROMO, String(promoId)).maybeSingle();
     if (error) throw error;
-    return enteteEmargementDuReglage(data?.value ?? null);
+    return enteteEmargementDuReglage(data?.value ?? null, (await lireMonOrganisme()).nom);
   };
   // Les feuilles d'émargement viennent de lireDonneesCentre (`centre.emargement`), lues une seule fois.
   const [centre, planning, agenda, livrets, dossiers, signalementsLus, cours, autoEcoles, profs, entete, joursOff, versions, demandes] = await Promise.all([
@@ -2498,22 +2553,25 @@ export function rouvrirEmargement(seanceId) {
 // En-tête des feuilles, propre à la promo (réglage `emargement_entete`, JSON). Les champs
 // facultatifs (adresse, signataire, qualité, lieu) servent aux certificats et attestations
 // (spec 2026-10-24) : vides, ils s'impriment en pointillés à compléter à la main.
+// L'organisme n'a plus de valeur écrite ici (cloisonnement, spec 2026-11-27 § 5.4) : à défaut d'un nom saisi dans l'en-tête, c'est
+// le nom de l'organisme de la personne connectée (lireMonOrganisme), et rien s'il ne se lit pas.
 export const ENTETE_EMARGEMENT_DEFAUT = {
-  organisme: "ECF BOUSCAREN",
+  organisme: "",
   intitule: "Titre professionnel Enseignant de la conduite et de la sécurité routière (ECSR)",
 };
 const ENTETE_FACULTATIF = { adresse1: 120, adresse2: 120, signataire: 80, qualite: 80, lieu: 60 };
 
-// La règle, écrite une seule fois : la valeur brute du réglage `emargement_entete` (JSON, ou nulle) donne l'organisme,
-// l'intitulé (valeur par défaut quand il manque, n'est pas un texte ou est vide) et les champs facultatifs des
-// attestations (vides par défaut). Partagée par
-// getEnteteEmargement (promo courante) et lireDonneesQualiopi (promo lue).
-function enteteEmargementDuReglage(valeur) {
+// La règle, écrite une seule fois : la valeur brute du réglage `emargement_entete` (JSON, ou nulle) donne l'organisme (le nom
+// saisi, sinon `nomOrganisme`, celui que rend mon_organisme(), sinon vide), l'intitulé (valeur par défaut quand il manque, n'est
+// pas un texte ou est vide) et les champs facultatifs des attestations (vides par défaut). Partagée par
+// getEnteteEmargement (promo courante) et lireDonneesQualiopi (promo lue : une promo du même organisme, la base n'en montre pas
+// d'autre).
+function enteteEmargementDuReglage(valeur, nomOrganisme = "") {
   let lu = null;
   try { lu = JSON.parse(valeur || "null"); } catch (e) { lu = null; }
   const texte = (k) => (lu && typeof lu[k] === "string" ? lu[k].trim() : "");
   const entete = {
-    organisme: texte("organisme") || ENTETE_EMARGEMENT_DEFAUT.organisme,
+    organisme: organismeParDefaut(texte("organisme"), nomOrganisme),
     intitule: texte("intitule") || ENTETE_EMARGEMENT_DEFAUT.intitule,
   };
   for (const k of Object.keys(ENTETE_FACULTATIF)) entete[k] = texte(k);
@@ -2521,10 +2579,12 @@ function enteteEmargementDuReglage(valeur) {
 }
 
 // Une lecture ratée lève (elle n'est plus remplacée par les valeurs par défaut) : imprimer
-// « ECF BOUSCAREN » sur une autre promo, ou réenregistrer ces valeurs par-dessus le vrai en-tête,
-// serait pire qu'une page en erreur. Un réglage absent, lui, donne les valeurs par défaut.
+// le nom d'un organisme sur une autre promo, ou réenregistrer ces valeurs par-dessus le vrai en-tête,
+// serait pire qu'une page en erreur. Un réglage absent, lui, donne les valeurs par défaut : l'organisme est alors celui de la
+// personne connectée (lireMonOrganisme ne lève jamais : sans lui, le champ reste vide, à remplir).
 export async function getEnteteEmargement() {
-  return enteteEmargementDuReglage(await getSetting("emargement_entete"));
+  const [valeur, organisme] = await Promise.all([getSetting("emargement_entete"), lireMonOrganisme()]);
+  return enteteEmargementDuReglage(valeur, organisme.nom);
 }
 
 // --- Lectures d'une AUTRE promo du centre, par l'en-tête de lecture (lot 5, Task 7) ---

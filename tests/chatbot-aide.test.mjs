@@ -300,3 +300,47 @@ test("titres : aucun guide ne contient « prof » ni de tiret cadratin, l'équip
     assert.ok(!guide.includes(String.fromCharCode(0x2014)), `${nom} : tiret cadratin`);
   }
 });
+
+// === Cloisonnement par organisme (étape 3) : les guides restent vrais pour tout organisme ===
+const sourceSupport = lireSource("../js/views/acces-support.js");
+const sourceRegles = lireSource("../js/organisme-rules.js");
+
+test("cloisonnement : aucun guide ne suppose un seul réseau ni que tout le monde rédige les contenus communs", () => {
+  // Le siège regarde les centres de son organisme ; il ne rédige les contenus communs que si son organisme en est le rédacteur.
+  const enTeteSiege = ligneDe(SIEGE, "TU ES DANS L'ESPACE SIÈGE");
+  assert.match(enTeteSiege, /centres de son organisme/);
+  assert.match(enTeteSiege, /si son organisme rédige les contenus communs/);
+  assert.ok(!/rédige les contenus communs\.$/.test(enTeteSiege.split(" ; ")[0]), "la rédaction n'est plus dite sans condition");
+  const coursSiege = ligneDe(SIEGE, "- themes (");
+  assert.match(coursSiege, /communs à tous les organismes/);
+  assert.ok(!coursSiege.includes("contenus communs à tous les centres"), "plus de « tous les centres » : ils sont ceux de l'organisme");
+  const directions = ligneDe(SIEGE, "- directions (");
+  assert.ok(directions.includes("un nom déjà pris par un centre du réseau est refusé"), "le doublon de nom se juge dans le réseau");
+  assert.ok(directions.includes("proposée à tous les centres du réseau"));
+  // Formateurs : l'éditeur des cours et des QCM, et les propositions de l'IA, sont ceux de l'organisme qui rédige.
+  const cours = ligneDe(NOUVELLE, "- themes (");
+  assert.match(cours, /communs à tous les organismes de formation qui utilisent l'app/);
+  assert.match(cours, /les formateurs d'un organisme qui les rédige y gèrent aussi l'éditeur de cours/);
+  assert.match(cours, /Proposer avec l'IA/);
+  assert.match(cours, /organisme qui rédige les contenus seulement/);
+  // Le verrou des titres est commun à la plateforme, comme l'écran le dit.
+  const reglages = ligneDe(NOUVELLE, "- config (");
+  assert.ok(reglages.includes("réglage commun à tous les organismes") && !reglages.includes("pour tout le réseau"));
+  assert.ok(sourceConfig.includes("Réglage réservé au fondateur, commun à tous les organismes."));
+  // Aucun guide n'écrit le nom d'un organisme client en dur (l'habillage « Couleurs ECF » est un choix d'apparence, pas un organisme).
+  for (const [nom, guide] of [["formateurs", NOUVELLE], ["direction", DIRECTION], ["siège", SIEGE]]) {
+    assert.ok(!/BOUSCAREN|Bouscaren/.test(guide), nom);
+  }
+});
+
+test("cloisonnement : l'accès support du fondateur est décrit avec les mots de l'écran et du bandeau", () => {
+  const reglages = ligneDe(NOUVELLE, "- config (");
+  for (const mot of ["Accès support", "Ouvrir un accès support", "Fermer", "journal des accès"]) {
+    assert.ok(reglages.includes(mot), mot);
+    assert.ok(sourceSupport.includes(mot) || sourceRegles.includes(mot), `absent de l'écran : ${mot}`);
+  }
+  assert.ok(reglages.includes("2 heures au plus") && sourceSupport.includes("2 heures au plus"));
+  assert.ok(reglages.includes("10 caractères au moins"));
+  assert.ok(reglages.includes("« Accès support : »") && sourceRegles.includes("Accès support : "));
+  assert.ok(reglages.includes("Aucune autre personne ne voit ces sections."));
+});

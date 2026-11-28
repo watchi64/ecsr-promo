@@ -1,12 +1,12 @@
-import { listStagiaires, listPassages, getPlanning, getJoursOff } from "../db.js?v=20261128a";
-import { el, clear, displayStagiaire, isoDate, addDays } from "../utils.js?v=20261128a";
-import { lundiEnCours } from "../journee-rules.js?v=20261128a";
-import { jourFerie } from "../emargement-rules.js?v=20261128a";
-import { isStagiaire, monStagiaireId, ecritSelonLaCase } from "../auth-admin.js?v=20261128a";
-import { ordreDePassage, placesDeLaSemaine, maSituation, TYPES } from "../ordre-passage-rules.js?v=20261128a";
-import { rolesPourEntry } from "../creneaux-rules.js?v=20261128a";
-import { icon } from "../icons.js?v=20261128a";
-import { renderPassages } from "./passages.js?v=20261128a";
+import { listStagiaires, listPassages, getPlanning, getJoursOff } from "../db.js?v=20261128c";
+import { el, clear, displayStagiaire, isoDate, addDays } from "../utils.js?v=20261128c";
+import { lundiEnCours } from "../journee-rules.js?v=20261128c";
+import { jourFerie } from "../emargement-rules.js?v=20261128c";
+import { isStagiaire, monStagiaireId, ecritSelonLaCase } from "../auth-admin.js?v=20261128c";
+import { ordreDePassage, placesDeLaSemaine, maSituation, TYPES } from "../ordre-passage-rules.js?v=20261128c";
+import { rolesPourEntry } from "../creneaux-rules.js?v=20261128c";
+import { icon } from "../icons.js?v=20261128c";
+import { renderPassages } from "./passages.js?v=20261128c";
 
 // Ordre de passage (sous-onglet de Planning, js/views/planning-espace.js), refonte du 11/11
 // (docs/superpowers/specs/2026-11-11-ordre-passage-resultats-design.md) : chacun sa vue. Le stagiaire voit sa situation

@@ -9,13 +9,13 @@
 // Rôles : formateur/admin = liste des stagiaires + remplissage ; stagiaire =
 // consultation de SON livret en lecture seule (imposé par la RLS).
 
-import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire } from "../db.js?v=20261128a";
-import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261128a";
-import { isAdmin, isProf, monStagiaireId, enVitrine, ecritSelonLaCase } from "../auth-admin.js?v=20261128a";
-import { getCurrentWho } from "../identity.js?v=20261128a";
-import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261128a";
+import { listStagiaires, listProfs, listEpcfLivrets, getEpcfLivret, upsertEpcfLivret, getDateNaissance, getStagiaire, lireMonOrganisme } from "../db.js?v=20261128c";
+import { el, clear, displayStagiaire, compareByNom, formatDate, toast } from "../utils.js?v=20261128c";
+import { isAdmin, isProf, monStagiaireId, enVitrine, ecritSelonLaCase } from "../auth-admin.js?v=20261128c";
+import { getCurrentWho } from "../identity.js?v=20261128c";
+import { EVT_DOCUMENT } from "../fiche-rules.js?v=20261128c";
 import { collectData, fillData, wireDocEditing,
-         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261128a";
+         bindDocPrint, refreshDocPrint, teardownDocPrint } from "../doc-officiel.js?v=20261128c";
 
 // La mécanique vit dans doc-officiel.js, partagée avec le Dossier Professionnel.
 const teardownLivretPrint = teardownDocPrint;
@@ -281,16 +281,22 @@ function buildDocHTML() {
 let stagiaires = [];
 let livretsIndex = [];   // [{stagiaire_id, updated_at}] pour les statuts de liste
 let profNames = [];      // noms des formateurs, pour l'auto-complétion des visas
+// Nom de l'organisme de la personne connectée (lireMonOrganisme, qui ne lève jamais : "" s'il ne se lit pas), lu à chaque
+// ouverture de la page : la valeur par défaut du champ « organisme » d'un livret qui n'en a pas encore.
+let nomOrganisme = "";
 
 export async function renderEpcfLivret(container, opts = {}) {
   clear(container);
   container.appendChild(el("div", { class: "loading" }, "Chargement"));
   const formateur = isAdmin() || isProf();
+  // Lue en même temps que le reste (aucune attente de plus) ; la promesse ne rejette jamais.
+  const organismeLu = lireMonOrganisme().then((o) => { nomOrganisme = o.nom; });
 
   if (!formateur) {
     // Stagiaire : la RLS ne renvoie que son livret. On l'affiche en lecture seule.
     let rows = [];
     try { rows = await listEpcfLivrets(); } catch (e) { console.error(e); }
+    await organismeLu;
     if (opts.isActive && !opts.isActive()) return;
     clear(container);
     // La RLS ne renvoie que le sien à un vrai stagiaire ; le filtre par
@@ -327,6 +333,7 @@ export async function renderEpcfLivret(container, opts = {}) {
     ]);
     let full = null;
     try { full = await getEpcfLivret(id); } catch (e) { console.error(e); }
+    await organismeLu;
     if (opts.isActive && !opts.isActive()) return;
     profNames = (profsData || []).map((p) => p.nom).filter(Boolean)
       .sort((a, b) => a.localeCompare(b, "fr"));
@@ -339,7 +346,7 @@ export async function renderEpcfLivret(container, opts = {}) {
   }
 
   const [stagiairesData, livretsData, profsData] = await Promise.all([
-    listStagiaires(), listEpcfLivrets(), listProfs(),
+    listStagiaires(), listEpcfLivrets(), listProfs(), organismeLu,
   ]);
   if (opts.isActive && !opts.isActive()) return;
   stagiaires = stagiairesData.slice().sort(compareByNom);
@@ -430,9 +437,10 @@ function showDoc(container, stagiaire, row, { readOnly, back, embedded, pourStag
   // --- Document ---
   const doc = el("div", { class: "lv-doc lv-screen" + (readOnly ? "" : " lv-edit") });
   doc.innerHTML = buildDocHTML();
-  // Valeurs par défaut du gabarit ECF (comme le Word transmis par Hocine),
-  // pré-remplissage du candidat depuis la fiche stagiaire.
-  const defaults = { organisme: "ECF BOUSCAREN" };
+  // Valeurs par défaut du gabarit (comme le Word transmis par Hocine) : l'organisme est celui de la personne connectée
+  // (vide s'il ne se lit pas : le champ reste à remplir, jamais le nom d'un autre organisme) ; un livret qui porte déjà le sien
+  // le garde. Pré-remplissage du candidat depuis la fiche stagiaire.
+  const defaults = { organisme: nomOrganisme };
   if (stagiaire) {
     defaults.nom = (stagiaire.nom || "").toUpperCase();
     defaults.prenom = stagiaire.prenom || "";

@@ -15,25 +15,26 @@ import {
   listUserProfiles, deleteUserProfile, lireRolesDuPersonnel,
   lirePersonnesEtTitres, lireTitresVisibles, donnerTitre, lireTitresOuverts, reglerTitresOuverts, lireJournalPresent,
   setMyAnonymousNotes,
-} from "../db.js?v=20261128a";
-import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261128a";
-import { confirmer } from "../confirmer.js?v=20261128a";
-import { icon } from "../icons.js?v=20261128a";
-import { isAdmin, isEquipe, isFounder, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine, ecritSelonLaCase, gesteDefinitif } from "../auth-admin.js?v=20261128a";
-import { moduleVisible } from "../modules-etat.js?v=20261128a";
-import { renderModulesSection } from "./modules-reglage.js?v=20261128a";
-import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261128a";
-import { renderEmargementReglage } from "../emargement-etat.js?v=20261128a";
-import { renderAutonomieReglage } from "../autonomie-etat.js?v=20261128a";
-import { pointsARetenir } from "../accueil-rules.js?v=20261128a";
-import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261128a";
-import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261128a";
-import { blocHabillage } from "../habillage-choix.js?v=20261128a";
-import { sectionMaFiche, sectionAlertes } from "./ma-fiche-contact.js?v=20261128a";
-import { nomBenevole } from "../planning-lecture.js?v=20261128a";
-import { dateFr } from "../dates.js?v=20261128a";
-import { phraseDeRefus } from "../espaces-rules.js?v=20261128a";
-import { boutonVerrouOffert, PHRASE_JOURNAL_ABSENT } from "../titres-rules.js?v=20261128a";
+} from "../db.js?v=20261128c";
+import { el, clear, toast, displayStagiaire } from "../utils.js?v=20261128c";
+import { confirmer } from "../confirmer.js?v=20261128c";
+import { icon } from "../icons.js?v=20261128c";
+import { isAdmin, isEquipe, isFounder, getAdminEmail, getProfile, monStagiaireId, getViewAs, fondateurHorsApercu, selonPublic, enVitrine, ecritSelonLaCase, gesteDefinitif } from "../auth-admin.js?v=20261128c";
+import { moduleVisible } from "../modules-etat.js?v=20261128c";
+import { renderModulesSection } from "./modules-reglage.js?v=20261128c";
+import { renderGestionStagiaires, poserMajPersonnesInvitables, envoyerInvitation } from "./stagiaires-gestion.js?v=20261128c";
+import { renderEmargementReglage } from "../emargement-etat.js?v=20261128c";
+import { renderAutonomieReglage } from "../autonomie-etat.js?v=20261128c";
+import { pointsARetenir } from "../accueil-rules.js?v=20261128c";
+import { questionPurgerBenevoles, PHRASE_CONSERVATION } from "../effacement-rules.js?v=20261128c";
+import { peutInviterFormateur, peutRetirerCompte, listeAcces } from "../roles-rules.js?v=20261128c";
+import { blocHabillage } from "../habillage-choix.js?v=20261128c";
+import { sectionMaFiche, sectionAlertes } from "./ma-fiche-contact.js?v=20261128c";
+import { nomBenevole } from "../planning-lecture.js?v=20261128c";
+import { dateFr } from "../dates.js?v=20261128c";
+import { phraseDeRefus } from "../espaces-rules.js?v=20261128c";
+import { boutonVerrouOffert, PHRASE_JOURNAL_ABSENT } from "../titres-rules.js?v=20261128c";
+import { renderAccesSupportSection } from "./acces-support.js?v=20261128c";
 
 // ====== SECTION Accès & invitations ======
 
@@ -87,7 +88,7 @@ async function renderTitresCarteSection(rerender) {
     el("div", { class: "param-icon" }, icon.shield()),
     el("div", {},
       el("h3", {}, "Titres à la carte"),
-      el("p", { class: "muted" }, "Réglage réservé au fondateur, pour tout le réseau."))));
+      el("p", { class: "muted" }, "Réglage réservé au fondateur, commun à tous les organismes."))));
   const bloc = el("div", { class: "param-block" });
   if (ouvert == null) {
     bloc.appendChild(el("p", { class: "muted", role: "alert" }, "L'état du verrou n'a pas pu être lu."));
@@ -704,8 +705,12 @@ async function rerender(container) {
       renderPromoSection(() => rerender(container)),
       renderDonneesSection(() => rerender(container)),
     ]), 12000, titre);
-    // Le verrou des titres non fixes (fondateur seul) : sa lecture ne retient pas la page, son échec se dit dans sa section.
-    const titresCarte = await renderTitresCarteSection(() => rerender(container));
+    // Le verrou des titres non fixes et l'accès support (fondateur seul, hors aperçu) : leurs lectures ne retiennent pas la page,
+    // leur échec se dit dans leur section.
+    const [titresCarte, accesSupport] = await Promise.all([
+      renderTitresCarteSection(() => rerender(container)),
+      renderAccesSupportSection(() => rerender(container)),
+    ]);
     // La section « Modules de la promo » est construite ICI, après l'attente, et non dans le
     // tableau ci-dessus : elle montre l'état des modules tel qu'il est au moment de son
     // insertion. Construite avant l'attente, elle serait périmée si une écriture se terminait
@@ -731,7 +736,7 @@ async function rerender(container) {
     const grid = el("div", { class: "param-grid" });
     // Ce que voient les stagiaires d'abord (le réglage qui sert le plus), puis la promo et les accès,
     // l'interrupteur du fondateur, les données personnelles, et le renvoi vers Apparence (Mes préférences).
-    [modules, promo, acces, emargement, autonomie, titresCarte, donnees, renderApparenceRenvoi()].filter(Boolean).forEach((s) => grid.appendChild(s));
+    [modules, promo, acces, emargement, autonomie, titresCarte, accesSupport, donnees, renderApparenceRenvoi()].filter(Boolean).forEach((s) => grid.appendChild(s));
     container.appendChild(grid);
   } catch (e) {
     console.error(titre + " : erreur de chargement", e);

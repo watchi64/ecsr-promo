@@ -6,9 +6,9 @@
 // la barre ne l'attend jamais. Les règles (lecture qui ne lève jamais, lecteurs de la pastille, résumé, texte des pastilles)
 // sont dans js/a-traiter-rules.js ; la coquille (js/nav-shell.js) pose les pastilles.
 
-import { countQcmSignalementsOuverts, countBrouillonsIaARelire } from "./db.js?v=20261128a";
-import { isAdmin, ecritSelonLaCase } from "./auth-admin.js?v=20261128a";
-import { lireLesComptes, lecteursDeLaPastille } from "./a-traiter-rules.js?v=20261128a";
+import { countQcmSignalementsOuverts, countBrouillonsIaARelire } from "./db.js?v=20261128c";
+import { isAdmin, ecritSelonLaCase, ecritLesContenus } from "./auth-admin.js?v=20261128c";
+import { lireLesComptes, lecteursDeLaPastille } from "./a-traiter-rules.js?v=20261128c";
 
 // Nombre total de signalements ouverts : countQcmSignalementsOuverts les rend par QCM (les compteurs de l'index des thèmes).
 const somme = (parQcm) => Object.values(parQcm || {}).reduce((total, n) => total + (Number(n) || 0), 0);
@@ -21,6 +21,8 @@ export async function chargerATraiter() {
   if (!ecritSelonLaCase("cours")) return { signalements: null, propositionsIA: null };
   return lireLesComptes(lecteursDeLaPastille({
     signalements: async () => somme(await countQcmSignalementsOuverts()),
-    propositionsIA: countBrouillonsIaARelire,
+    // Organisme qui ne rédige pas les contenus communs : ni sous-onglet « Propositions IA » ni brouillon lisible ; le compte vaut 0
+    // (rien à traiter), sans lecture, et non null, qui se dirait « n'a pas pu être lu ».
+    propositionsIA: ecritLesContenus() ? countBrouillonsIaARelire : async () => 0,
   }));
 }

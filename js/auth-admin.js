@@ -19,21 +19,22 @@ import {
   getMyProfile, listStagiaires, listProfs,
   chargerMesPromos, mesAffectations, oublierPromo, getPromoCourante, getMesPromos, rechargerApresEnregistrements,
   bloquerRequetesJusquAuRechargement, poserApercu, invalidateCache, choisirPromo, ouvrirDansUnePromo, stagiaireVitrineCourante,
-  lireMesTitres, lireTitresVisibles,
-} from "./db.js?v=20261128a";
+  lireMesTitres, lireTitresVisibles, lireMonOrganisme,
+} from "./db.js?v=20261128c";
+import { redacteurConnu, contenusEcrivables } from "./organisme-rules.js?v=20261128c";
 import {
   LIBELLES_APERCU, normaliserApercu, apercusPermis, droitsAffiches, messageSansPromo, titreSimule, APERCUS_PAR_TITRE,
-} from "./roles-rules.js?v=20261128a";
+} from "./roles-rules.js?v=20261128c";
 import {
   ACCUEIL_ESPACE, espacesPermis, espacesDuCompte, espaceChoisi, brider, peutRedigerContenus, decisionPorteSansPromo,
   centreAffiche, promoPourLaDirection, promoPourLEspace, affectationsDeSecours, espaceDePilotage, routeDansLEspace, texteBandeauApercu, estVueStagiaire,
-} from "./espaces-rules.js?v=20261128a";
+} from "./espaces-rules.js?v=20261128c";
 import { casesDeLEspace, caseDe, selonLaCase, formateurFixeSur, NIVEAU_DE_L_ESPACE, titresPourApercu,
-  fusionnerListesApercu, listesPourLeCentre, listesApercuIncompletes } from "./titres-rules.js?v=20261128a";
-import { peutQuitter } from "./navigation.js?v=20261128a";
-import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261128a";
-import { icon } from "./icons.js?v=20261128a";
-import { lireAdresse } from "./route-rules.js?v=20261128a";
+  fusionnerListesApercu, listesPourLeCentre, listesApercuIncompletes } from "./titres-rules.js?v=20261128c";
+import { peutQuitter } from "./navigation.js?v=20261128c";
+import { el, toast, displayStagiaire, isoDate, signatureStagiaire } from "./utils.js?v=20261128c";
+import { icon } from "./icons.js?v=20261128c";
+import { lireAdresse } from "./route-rules.js?v=20261128c";
 
 let currentUser = null;     // Supabase auth user
 let currentProfile = null;  // row user_profiles
@@ -56,7 +57,10 @@ let titreApercu = null;
 // (en aperçu, la base rend le titre simulé). Nul : lecture ratée ou fonction absente, sans message ; l'app reste alors celle
 // d'avant les titres (cases nulles, tout au plafond), la base refusant de toute façon ce qui dépasse.
 let mesTitres = null;
-let epoqueTitres = 0;  // une lecture partie avant un changement d'aperçu ou une déconnexion n'écrit rien
+let epoqueTitres = 0;
+// Cloisonnement (étape 3) : l'organisme affiché rédige-t-il les contenus communs ? true, false, ou null (inconnu : lecture ratée,
+// base d'avant le cloisonnement). Lu avec les titres (même époque), relu à chaque changement d'aperçu, oublié avec eux.
+let organismeRedacteur = null;  // une lecture partie avant un changement d'aperçu ou une déconnexion n'écrit rien
 
 // Lot 5 : les affectations du compte (`{ role, promo_id, lieu_id, lieu_nom }` : siège, direction d'un centre, formateur d'une
 // promo), relues à chaque ouverture de session. Le siège et la direction en tirent leur espace (D2).
@@ -106,9 +110,17 @@ export function selonPublic(tu, vous) { return vueStagiaire() ? tu : vous; }
 // La case « Cours et QCM » décide quand elle est lue (équipe : la case de la promo ; siège : celle du réseau, comme case_promo(...) = 2 ou
 // case_reseau(...) = 2 en base) : un titre non fixe sur « Modifier » rédige, un titre sur « Voir » non. Un titre fixe est au plafond (le
 // formateur fixe, le siège fixe : comme avant). Cases non lues (fondateur, panne, direction) : l'ancien prédicat seul.
+// Cloisonnement (étape 3) : de plus, l'organisme affiché doit rédiger les contenus communs (ecritLesContenus) ; inconnu, comme avant.
 export function isRedacteur() {
   const ancien = peutRedigerContenus({ droits: droitsNonBrides(), espace: getEspace() });
-  return ecritSelonLaCase("cours", ancien, ["equipe", "siege"]);
+  return ecritSelonLaCase("cours", ancien, ["equipe", "siege"]) && ecritLesContenus();
+}
+
+// Les gestes d'écriture des contenus communs sont-ils offerts dans l'organisme affiché (js/organisme-rules.js, contenusEcrivables) ?
+// Faux seulement pour un organisme connu comme non rédacteur, hors fondateur hors aperçu (accès support). À combiner avec le droit
+// d'écran : isRedacteur() le fait ; « Proposer avec l'IA » et « Propositions IA » (js/views/themes.js, js/a-traiter.js) aussi.
+export function ecritLesContenus() {
+  return contenusEcrivables({ redacteur: organismeRedacteur, fondateur: fondateurHorsApercu() });
 }
 
 // ----- Espaces (lot 5) -----
@@ -166,13 +178,17 @@ export function gesteDefinitif() {
 
 async function lireTitresDeLaSession() {
   const mienne = ++epoqueTitres;
-  let lus = null;
-  try { lus = await lireMesTitres(); } catch (e) { lus = null; }
-  if (mienne === epoqueTitres) mesTitres = lus;
+  // lireMonOrganisme ne rejette jamais : une panne rend la ligne vide, que redacteurConnu lit « inconnu ».
+  const [lus, organisme] = await Promise.all([lireMesTitres().catch(() => null), lireMonOrganisme()]);
+  if (mienne === epoqueTitres) {
+    mesTitres = lus;
+    organismeRedacteur = redacteurConnu(organisme);
+  }
 }
 function oublierTitres() {
   epoqueTitres += 1;
   mesTitres = null;
+  organismeRedacteur = null;
 }
 
 // Aperçu par titre : les titres que le choix « Titre » propose, lus UNE fois hors aperçu (en aperçu, titres_visibles refuserait :
